@@ -137,3 +137,25 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Hardhat/Foundry/Truffle artifacts
+artifacts/
+cache/
+typechain/
+
+# IDE/editor files
+.idea/
+.vscode/
+
+# MacOS system files
+.DS_Store
+
+# Vim/backup/temp files
+*.swp
+*.swo
+*.bak
+*.tmp
+*.orig
+
+# Windows system files
+Thumbs.db
