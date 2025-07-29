@@ -1,4 +1,7 @@
 {
   "EscrowModule#Escrow": "0x69FcCf60557a09b3ee7dEE419730E30633470ea6",
-  "EscrowModule#EscrowFactory": "0x551734289977B41b952486e8f3B25a9D4ee701f9"
+  "EscrowModule#EscrowFactory": "0x551734289977B41b952486e8f3B25a9D4ee701f9",
+  "EscrowSrcDstModule#EscrowDst": "0x506e1919245F6f564eB958f06aBFE13F83100638",
+  "EscrowSrcDstModule#EscrowSrc": "0xBDfeC52E2b26fb867C43a8Cc1C7dc24BF0f65461",
+  "EscrowSrcDstModule#EscrowFactory": "0x5493e8D189876E7dbAd9D236fB035869eab9a4eC"
 }
