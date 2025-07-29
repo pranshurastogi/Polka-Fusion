@@ -25,4 +25,12 @@ contract EscrowFactory {
         esc = Clones.cloneDeterministic(dstImpl, salt);
         emit DstCreated(esc, salt);
     }
+
+    function predictSrcEscrow(bytes32 salt) external view returns (address) {
+        return Clones.predictDeterministicAddress(srcImpl, salt);
+    }
+
+    function predictDstEscrow(bytes32 salt) external view returns (address) {
+        return Clones.predictDeterministicAddress(dstImpl, salt);
+    }
 }
