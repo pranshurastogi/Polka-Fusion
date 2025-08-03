@@ -3,17 +3,14 @@ pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
 
-/// @notice Deploys minimal‑proxy clones for both EscrowSrc and EscrowDst
+/// @notice Deploys minimal‑proxy clones for EscrowSrc contracts
 contract EscrowFactory {
     address public immutable srcImpl;
-    address public immutable dstImpl;
 
     event SrcCreated(address indexed esc, bytes32 salt);
-    event DstCreated(address indexed esc, bytes32 salt);
 
-    constructor(address _s, address _d) {
-        srcImpl = _s;
-        dstImpl = _d;
+    constructor(address _srcImpl) {
+        srcImpl = _srcImpl;
     }
 
     function createSrcEscrow(bytes32 salt) external returns (address esc) {
@@ -21,16 +18,7 @@ contract EscrowFactory {
         emit SrcCreated(esc, salt);
     }
 
-    function createDstEscrow(bytes32 salt) external returns (address esc) {
-        esc = Clones.cloneDeterministic(dstImpl, salt);
-        emit DstCreated(esc, salt);
-    }
-
     function predictSrcEscrow(bytes32 salt) external view returns (address) {
         return Clones.predictDeterministicAddress(srcImpl, salt);
-    }
-
-    function predictDstEscrow(bytes32 salt) external view returns (address) {
-        return Clones.predictDeterministicAddress(dstImpl, salt);
     }
 }

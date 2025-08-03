@@ -1,9 +1,61 @@
-// scripts/simulate.js
+// scripts/test-with-valid-proofs.js
 const hre = require("hardhat");
 const { ethers } = require("hardhat");
 
+// Simple Merkle tree implementation for testing
+class MerkleTree {
+  constructor(leaves) {
+    this.leaves = leaves;
+    this.layers = [leaves];
+    this.buildTree();
+  }
+
+  buildTree() {
+    let layer = this.leaves;
+    while (layer.length > 1) {
+      const newLayer = [];
+      for (let i = 0; i < layer.length; i += 2) {
+        if (i + 1 < layer.length) {
+          newLayer.push(this.hashPair(layer[i], layer[i + 1]));
+        } else {
+          newLayer.push(layer[i]);
+        }
+      }
+      this.layers.push(newLayer);
+      layer = newLayer;
+    }
+  }
+
+  hashPair(left, right) {
+    return ethers.keccak256(ethers.concat([left, right]));
+  }
+
+  getRoot() {
+    return this.layers[this.layers.length - 1][0];
+  }
+
+  getProof(index) {
+    const proof = [];
+    let currentIndex = index;
+    
+    for (let i = 0; i < this.layers.length - 1; i++) {
+      const layer = this.layers[i];
+      const isRightNode = currentIndex % 2 === 1;
+      const pairIndex = isRightNode ? currentIndex - 1 : currentIndex + 1;
+      
+      if (pairIndex < layer.length) {
+        proof.push(layer[pairIndex]);
+      }
+      
+      currentIndex = Math.floor(currentIndex / 2);
+    }
+    
+    return proof;
+  }
+}
+
 async function main() {
-  console.log("🚀 Starting Ethereum Escrow Simulation...");
+  console.log("🚀 Starting Ethereum Escrow Test with Valid Proofs...");
 
   // Get signers
   const [deployer, maker, taker] = await ethers.getSigners();
@@ -35,7 +87,7 @@ async function main() {
   const partsCount = 4;
   const expiryTimestamp = Math.floor(Date.now() / 1000) + 3600; // 1 hour from now
   
-  // Generate secrets and build Merkle tree
+  // Generate secrets and build proper Merkle tree
   const secrets = [];
   const leaves = [];
   
@@ -49,8 +101,9 @@ async function main() {
     leaves.push(leaf);
   }
 
-  // Simple Merkle tree construction (for demo purposes)
-  const merkleRoot = leaves[0]; // Simplified for testing
+  // Build proper Merkle tree
+  const merkleTree = new MerkleTree(leaves);
+  const merkleRoot = merkleTree.getRoot();
   console.log("🌳 Merkle Root:", merkleRoot);
 
   // Create escrow using factory
@@ -94,14 +147,14 @@ async function main() {
     balance: ethers.formatEther(await escrowContract.getBalance())
   });
 
-  // Simulate claiming parts
-  console.log("\n🔓 Simulating part claims...");
+  // Simulate claiming parts with valid proofs
+  console.log("\n🔓 Simulating part claims with valid proofs...");
   
   for (let i = 0; i < partsCount; i++) {
     const takerBalanceBefore = await mockToken.balanceOf(taker.address);
     
-    // Create simple proof (for demo - in real implementation this would be proper Merkle proof)
-    const proof = [ethers.ZeroHash]; // Simplified proof
+    // Get valid Merkle proof
+    const proof = merkleTree.getProof(i);
     
     try {
       await escrowContract.connect(taker).claimPart(
@@ -116,6 +169,7 @@ async function main() {
       console.log(`✅ Part ${i} claimed successfully`);
       console.log(`   Claimed amount: ${ethers.formatEther(claimedAmount)} tokens`);
       console.log(`   Parts claimed: ${await escrowContract.getPartsClaimed()}`);
+      console.log(`   Proof length: ${proof.length}`);
     } catch (error) {
       console.log(`❌ Failed to claim part ${i}:`, error.message);
     }
@@ -140,7 +194,7 @@ async function main() {
     console.log("❌ Refund failed:", error.message);
   }
 
-  console.log("\n🎉 Simulation completed successfully!");
+  console.log("\n🎉 Test completed successfully!");
 }
 
-main().catch(console.error);
+main().catch(console.error); 

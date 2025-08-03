@@ -1,14 +1,13 @@
 // scripts/deploy-and-log.js
 const hre = require("hardhat");
-const EscrowSrcDstModule = require("../ignition/modules/EscrowSrcDstModule");
+const EscrowSrcModule = require("../ignition/modules/EscrowSrcModule");
 
 async function main() {
   // 1. Deploy via Ignition
-  const { escrowSrc, escrowDst, factory } = await hre.ignition.deploy(EscrowSrcDstModule);
+  const { escrowSrc, factory } = await hre.ignition.deploy(EscrowSrcModule);
 
   // 2. Log deployed addresses
   console.log("▶️ EscrowSrc deployed at:", await escrowSrc.getAddress());
-  console.log("▶️ EscrowDst deployed at:", await escrowDst.getAddress());
   console.log("▶️ EscrowFactory deployed at:", await factory.getAddress());
 }
 

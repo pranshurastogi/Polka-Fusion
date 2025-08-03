@@ -1,8 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Lock, Unlock, ArrowRight, CheckCircle, Sparkles, Info, ExternalLink } from "lucide-react"
+import { 
+  Lock, 
+  Unlock, 
+  ArrowRight, 
+  CheckCircle, 
+  Sparkles, 
+  Info, 
+  ExternalLink,
+  Shield,
+  Clock,
+  Hash,
+  Key,
+  Wallet,
+  Network,
+  AlertCircle,
+  Copy,
+  Check,
+  X
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,31 +28,84 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-type Step = "gate" | "lock" | "cross" | "claim" | "success"
+type Step = "setup" | "lock" | "cross" | "claim" | "success"
+type NetworkType = "ethereum" | "polkadot"
+
+interface EscrowState {
+  maker: string
+  taker: string
+  amount: string
+  partsCount: number
+  expiryTimestamp: number
+  merkleRoot: string
+  secrets: string[]
+  proofs: string[][]
+  partsClaimed: number
+  refunded: boolean
+  balance: string
+}
 
 export default function PolkaFusion() {
-  const [currentStep, setCurrentStep] = useState<Step>("gate")
+  const [currentStep, setCurrentStep] = useState<Step>("setup")
   const [isConnected, setIsConnected] = useState(false)
-  const [swapAmount, setSwapAmount] = useState("1.5")
-  const [secret, setSecret] = useState("")
-  const [hashlock, setHashlock] = useState("0x7b2274...")
+  const [activeNetwork, setActiveNetwork] = useState<NetworkType>("ethereum")
+  const [escrowState, setEscrowState] = useState<EscrowState>({
+    maker: "0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6",
+    taker: "0x1234567890123456789012345678901234567890",
+    amount: "100",
+    partsCount: 4,
+    expiryTimestamp: 0,
+    merkleRoot: "",
+    secrets: [],
+    proofs: [],
+    partsClaimed: 0,
+    refunded: false,
+    balance: "0"
+  })
+  const [currentPart, setCurrentPart] = useState(0)
+  const [secretInput, setSecretInput] = useState("")
   const [progress, setProgress] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
 
-  const steps = [
-    { id: "lock", label: "Lock", description: "Secure your assets" },
-    { id: "cross", label: "Cross", description: "Bridge networks" },
-    { id: "claim", label: "Claim", description: "Receive tokens" },
-  ]
+  // Generate Merkle tree and secrets
+  useEffect(() => {
+    if (currentStep === "lock") {
+      generateMerkleTree()
+    }
+  }, [currentStep])
+
+  const generateMerkleTree = () => {
+    // Simulate Merkle tree generation
+    const secrets = Array.from({ length: escrowState.partsCount }, (_, i) => 
+      `0x${Math.random().toString(16).substring(2, 34).padStart(64, '0')}`
+    )
+    const merkleRoot = `0x${Math.random().toString(16).substring(2, 34).padStart(64, '0')}`
+    
+    // Generate mock proofs for each part
+    const proofs = secrets.map((_, i) => 
+      Array.from({ length: 3 }, () => `0x${Math.random().toString(16).substring(2, 34).padStart(64, '0')}`)
+    )
+
+    setEscrowState(prev => ({
+      ...prev,
+      secrets,
+      merkleRoot,
+      proofs,
+      expiryTimestamp: Math.floor(Date.now() / 1000) + 7200 // 2 hours from now
+    }))
+  }
 
   const handleStepProgress = () => {
-    if (currentStep === "gate") {
+    if (currentStep === "setup") {
       setCurrentStep("lock")
       setIsConnected(true)
     } else if (currentStep === "lock") {
       setCurrentStep("cross")
-      // Simulate progress
+      // Simulate cross-chain progress
       const interval = setInterval(() => {
         setProgress((prev) => {
           if (prev >= 100) {
@@ -48,10 +119,29 @@ export default function PolkaFusion() {
     } else if (currentStep === "cross") {
       setCurrentStep("claim")
     } else if (currentStep === "claim") {
-      setCurrentStep("success")
-      setShowConfetti(true)
-      setTimeout(() => setShowConfetti(false), 3000)
+      if (currentPart < escrowState.partsCount - 1) {
+        setCurrentPart(prev => prev + 1)
+        setSecretInput("")
+      } else {
+        setCurrentStep("success")
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 3000)
+      }
     }
+  }
+
+  const copyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text)
+    setCopied(type)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  const formatAddress = (address: string) => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`
+  }
+
+  const formatHash = (hash: string) => {
+    return `${hash.slice(0, 10)}...${hash.slice(-8)}`
   }
 
   return (
@@ -67,10 +157,18 @@ export default function PolkaFusion() {
           </div>
 
           <div className="flex items-center space-x-4">
-            <div className="flex bg-white/10 rounded-lg p-1">
-              <button className="px-3 py-1 rounded bg-white/20 text-sm font-medium">Ethereum</button>
-              <button className="px-3 py-1 text-sm font-medium opacity-70">Polkadot</button>
-            </div>
+            <Tabs value={activeNetwork} onValueChange={(value) => setActiveNetwork(value as NetworkType)}>
+              <TabsList className="bg-white/10">
+                <TabsTrigger value="ethereum" className="data-[state=active]:bg-white/20">
+                  <Network className="w-4 h-4 mr-1" />
+                  Ethereum
+                </TabsTrigger>
+                <TabsTrigger value="polkadot" className="data-[state=active]:bg-white/20">
+                  <Shield className="w-4 h-4 mr-1" />
+                  Polkadot
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
 
             {isConnected && (
               <Badge variant="secondary" className="bg-green-500/20 text-green-100">
@@ -83,25 +181,28 @@ export default function PolkaFusion() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto p-6">
+      <main className="max-w-6xl mx-auto p-6">
         <AnimatePresence mode="wait">
-          {currentStep === "gate" && <BridgeGate onEnter={handleStepProgress} />}
+          {currentStep === "setup" && <SetupScreen onEnter={handleStepProgress} />}
 
           {(currentStep === "lock" || currentStep === "cross" || currentStep === "claim") && (
-            <SwapInterface
+            <EscrowInterface
               currentStep={currentStep}
-              steps={steps}
+              escrowState={escrowState}
+              setEscrowState={setEscrowState}
+              currentPart={currentPart}
+              secretInput={secretInput}
+              setSecretInput={setSecretInput}
               progress={progress}
-              swapAmount={swapAmount}
-              setSwapAmount={setSwapAmount}
-              secret={secret}
-              setSecret={setSecret}
-              hashlock={hashlock}
               onNext={handleStepProgress}
+              copyToClipboard={copyToClipboard}
+              copied={copied}
+              formatAddress={formatAddress}
+              formatHash={formatHash}
             />
           )}
 
-          {currentStep === "success" && <SuccessScreen />}
+          {currentStep === "success" && <SuccessScreen escrowState={escrowState} />}
         </AnimatePresence>
       </main>
 
@@ -113,25 +214,30 @@ export default function PolkaFusion() {
         <div className="max-w-6xl mx-auto p-6">
           <div className="grid md:grid-cols-3 gap-6">
             <div>
-              <h3 className="font-semibold text-gray-800 mb-3">Support</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">Smart Contract Info</h3>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>Need help? Check our FAQ or contact support.</p>
+                <p>EscrowSrc: {formatAddress("0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6")}</p>
+                <p>EscrowDst: {formatAddress("0x1234567890123456789012345678901234567890")}</p>
                 <button className="text-pink-600 hover:text-pink-700 flex items-center">
-                  View Documentation <ExternalLink className="w-3 h-3 ml-1" />
+                  View on Etherscan <ExternalLink className="w-3 h-3 ml-1" />
                 </button>
               </div>
             </div>
 
             <div>
-              <h3 className="font-semibold text-gray-800 mb-3">Top Relayers</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">Bridge Statistics</h3>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
-                  <span>FastBridge</span>
-                  <span className="text-green-600">2.3s avg</span>
+                  <span>Total Swaps</span>
+                  <span className="text-green-600">1,247</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>QuickRelay</span>
-                  <span className="text-green-600">2.8s avg</span>
+                  <span>Success Rate</span>
+                  <span className="text-green-600">99.8%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Avg Bridge Time</span>
+                  <span className="text-green-600">2.3s</span>
                 </div>
               </div>
             </div>
@@ -172,7 +278,7 @@ export default function PolkaFusion() {
   )
 }
 
-function BridgeGate({ onEnter }: { onEnter: () => void }) {
+function SetupScreen({ onEnter }: { onEnter: () => void }) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -209,11 +315,43 @@ function BridgeGate({ onEnter }: { onEnter: () => void }) {
       </div>
 
       <h2 className="text-4xl font-bold bg-gradient-to-r from-pink-600 to-red-600 bg-clip-text text-transparent mb-4">
-        Welcome to the Bridge Gate
+        Cross-Chain Atomic Swap
       </h2>
       <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-        Seamlessly bridge your assets between Ethereum and Polkadot through our secure atomic swap protocol.
+        Secure atomic swaps between Ethereum and Polkadot using Merkle tree-based part claiming.
       </p>
+
+      <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-8">
+        <Card className="bg-white/80 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Lock className="w-5 h-5 mr-2 text-pink-600" />
+              Ethereum EscrowSrc
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>• Factory-based deployment</p>
+            <p>• Merkle tree verification</p>
+            <p>• Part-based claiming</p>
+            <p>• Time-locked refunds</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-white/80 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Shield className="w-5 h-5 mr-2 text-pink-600" />
+              Polkadot EscrowDst
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>• Ink! smart contract</p>
+            <p>• Cross-chain verification</p>
+            <p>• Atomic swap completion</p>
+            <p>• Secure token transfer</p>
+          </CardContent>
+        </Card>
+      </div>
 
       <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
         <Button
@@ -221,7 +359,7 @@ function BridgeGate({ onEnter }: { onEnter: () => void }) {
           size="lg"
           className="bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white px-8 py-4 text-lg rounded-xl shadow-lg"
         >
-          Enter the Fusion
+          Start Atomic Swap
           <ArrowRight className="w-5 h-5 ml-2" />
         </Button>
       </motion.div>
@@ -229,27 +367,39 @@ function BridgeGate({ onEnter }: { onEnter: () => void }) {
   )
 }
 
-function SwapInterface({
+function EscrowInterface({
   currentStep,
-  steps,
+  escrowState,
+  setEscrowState,
+  currentPart,
+  secretInput,
+  setSecretInput,
   progress,
-  swapAmount,
-  setSwapAmount,
-  secret,
-  setSecret,
-  hashlock,
   onNext,
+  copyToClipboard,
+  copied,
+  formatAddress,
+  formatHash
 }: {
   currentStep: Step
-  steps: Array<{ id: string; label: string; description: string }>
+  escrowState: EscrowState
+  setEscrowState: (state: EscrowState) => void
+  currentPart: number
+  secretInput: string
+  setSecretInput: (value: string) => void
   progress: number
-  swapAmount: string
-  setSwapAmount: (value: string) => void
-  secret: string
-  setSecret: (value: string) => void
-  hashlock: string
   onNext: () => void
+  copyToClipboard: (text: string, type: string) => void
+  copied: string | null
+  formatAddress: (address: string) => string
+  formatHash: (hash: string) => string
 }) {
+  const steps = [
+    { id: "lock", label: "Lock", description: "Create escrow" },
+    { id: "cross", label: "Cross", description: "Bridge networks" },
+    { id: "claim", label: "Claim", description: "Claim parts" },
+  ]
+
   const currentStepIndex = steps.findIndex((step) => step.id === currentStep)
 
   return (
@@ -290,11 +440,11 @@ function SwapInterface({
         ))}
       </div>
 
-      {/* Main Swap Card */}
-      <Card className="max-w-2xl mx-auto shadow-xl border-0 bg-white/80 backdrop-blur">
+      {/* Main Escrow Card */}
+      <Card className="max-w-4xl mx-auto shadow-xl border-0 bg-white/80 backdrop-blur">
         <CardHeader className="bg-gradient-to-r from-pink-500 to-red-600 text-white rounded-t-lg">
           <CardTitle className="flex items-center justify-between">
-            <span>Cross-Chain Swap</span>
+            <span>Escrow Contract</span>
             <motion.div animate={{ rotate: currentStep === "claim" ? 0 : 180 }} transition={{ duration: 0.5 }}>
               {currentStep === "claim" ? <Unlock className="w-6 h-6" /> : <Lock className="w-6 h-6" />}
             </motion.div>
@@ -302,31 +452,58 @@ function SwapInterface({
         </CardHeader>
 
         <CardContent className="p-6 space-y-6">
-          {/* Token Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>From (Ethereum)</Label>
-              <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                  ETH
+          {/* Contract State */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-800 flex items-center">
+                <Wallet className="w-4 h-4 mr-2" />
+                Contract Details
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Maker:</span>
+                  <span className="font-mono">{formatAddress(escrowState.maker)}</span>
                 </div>
-                <Input
-                  value={swapAmount}
-                  onChange={(e) => setSwapAmount(e.target.value)}
-                  className="border-0 bg-transparent text-lg font-semibold"
-                  placeholder="0.0"
-                />
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Taker:</span>
+                  <span className="font-mono">{formatAddress(escrowState.taker)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Amount:</span>
+                  <span>{escrowState.amount} TEST</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Parts:</span>
+                  <span>{escrowState.partsClaimed}/{escrowState.partsCount}</span>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>To (Polkadot)</Label>
-              <div className="flex items-center space-x-2 p-3 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-pink-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                  DOT
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-800 flex items-center">
+                <Hash className="w-4 h-4 mr-2" />
+                Merkle Tree
+              </h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600">Root:</span>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-mono">{formatHash(escrowState.merkleRoot)}</span>
+                    <button
+                      onClick={() => copyToClipboard(escrowState.merkleRoot, "root")}
+                      className="text-pink-600 hover:text-pink-700"
+                    >
+                      {copied === "root" ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
                 </div>
-                <div className="text-lg font-semibold text-gray-600">
-                  {(Number.parseFloat(swapAmount) * 0.95).toFixed(2)}
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Parts Count:</span>
+                  <span>{escrowState.partsCount}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Expiry:</span>
+                  <span>{new Date(escrowState.expiryTimestamp * 1000).toLocaleTimeString()}</span>
                 </div>
               </div>
             </div>
@@ -337,25 +514,32 @@ function SwapInterface({
           {/* Step-specific content */}
           {currentStep === "lock" && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label className="flex items-center">
-                  Hashlock
-                  <Info className="w-4 h-4 ml-1 text-gray-400" />
-                </Label>
-                <Input value={hashlock} readOnly className="font-mono text-sm bg-gray-50" />
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Escrow contract has been deployed and initialized. Tokens are locked with Merkle tree verification.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Merkle Root</Label>
+                  <Input value={escrowState.merkleRoot} readOnly className="font-mono text-sm bg-gray-50" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Parts Count</Label>
+                  <Input value={escrowState.partsCount.toString()} readOnly className="bg-gray-50" />
+                </div>
               </div>
-              <p className="text-sm text-gray-600">
-                Your assets will be locked with this hashlock until the swap completes.
-              </p>
             </div>
           )}
 
           {currentStep === "cross" && (
             <div className="space-y-4">
               <div className="text-center">
-                <div className="text-lg font-semibold text-gray-800 mb-2">Bridging Networks...</div>
+                <div className="text-lg font-semibold text-gray-800 mb-2">Bridging to Polkadot...</div>
                 <Progress value={progress} className="w-full h-3" />
-                <p className="text-sm text-gray-600 mt-2">Your assets are en route! {progress}% complete</p>
+                <p className="text-sm text-gray-600 mt-2">Cross-chain verification in progress... {progress}% complete</p>
               </div>
 
               <motion.div
@@ -372,18 +556,55 @@ function SwapInterface({
 
           {currentStep === "claim" && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Secret Key</Label>
-                <Input
-                  value={secret}
-                  onChange={(e) => setSecret(e.target.value)}
-                  placeholder="Enter your secret to claim tokens"
-                  className="font-mono"
-                />
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Claim Part {currentPart + 1}/{escrowState.partsCount}</h3>
+                <p className="text-sm text-gray-600">Enter the secret for this part to claim tokens</p>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Auto-claim available</span>
-                <button className="text-pink-600 hover:text-pink-700">Use Auto-claim</button>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Secret for Part {currentPart + 1}</Label>
+                  <Input
+                    value={secretInput}
+                    onChange={(e) => setSecretInput(e.target.value)}
+                    placeholder="Enter the secret key for this part"
+                    className="font-mono"
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Expected Secret</Label>
+                    <div className="flex items-center space-x-2">
+                      <Input 
+                        value={escrowState.secrets[currentPart] || ""} 
+                        readOnly 
+                        className="font-mono text-sm bg-gray-50" 
+                      />
+                      <button
+                        onClick={() => copyToClipboard(escrowState.secrets[currentPart] || "", "secret")}
+                        className="text-pink-600 hover:text-pink-700"
+                      >
+                        {copied === "secret" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Proof Length</Label>
+                    <Input 
+                      value={`${escrowState.proofs[currentPart]?.length || 0} hashes`} 
+                      readOnly 
+                      className="bg-gray-50" 
+                    />
+                  </div>
+                </div>
+
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Each part requires a unique secret and Merkle proof for verification. Parts must be claimed in order.
+                  </AlertDescription>
+                </Alert>
               </div>
             </div>
           )}
@@ -395,9 +616,9 @@ function SwapInterface({
               className="w-full bg-gradient-to-r from-pink-500 to-red-600 hover:from-pink-600 hover:to-red-700 text-white py-3 text-lg rounded-lg shadow-lg"
               disabled={currentStep === "cross" && progress < 100}
             >
-              {currentStep === "lock" && "Initiate Swap"}
+              {currentStep === "lock" && "Deploy to Polkadot"}
               {currentStep === "cross" && (progress < 100 ? "Processing..." : "Ready to Claim")}
-              {currentStep === "claim" && "Claim Tokens"}
+              {currentStep === "claim" && `Claim Part ${currentPart + 1}`}
             </Button>
           </motion.div>
         </CardContent>
@@ -406,7 +627,7 @@ function SwapInterface({
   )
 }
 
-function SuccessScreen() {
+function SuccessScreen({ escrowState }: { escrowState: EscrowState }) {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-20">
       <motion.div
@@ -420,22 +641,62 @@ function SuccessScreen() {
         <CheckCircle className="w-12 h-12 text-white" />
       </motion.div>
 
-      <h2 className="text-3xl font-bold text-gray-800 mb-4">Swap Completed Successfully! 🎉</h2>
-      <p className="text-lg text-gray-600 mb-8">Your tokens have been successfully bridged to Polkadot.</p>
+      <h2 className="text-3xl font-bold text-gray-800 mb-4">Atomic Swap Completed! 🎉</h2>
+      <p className="text-lg text-gray-600 mb-8">All parts have been successfully claimed on Polkadot.</p>
 
-      <div className="bg-white/80 backdrop-blur rounded-xl p-6 max-w-md mx-auto shadow-lg">
-        <div className="space-y-3">
+      <div className="bg-white/80 backdrop-blur rounded-xl p-6 max-w-2xl mx-auto shadow-lg">
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h3 className="font-semibold text-gray-800">Ethereum (Source)</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Initial Amount:</span>
+                <span className="font-semibold">{escrowState.amount} TEST</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Parts Claimed:</span>
+                <span className="font-semibold">{escrowState.partsCount}/{escrowState.partsCount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Status:</span>
+                <span className="text-green-600 font-semibold">Completed</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="font-semibold text-gray-800">Polkadot (Destination)</h3>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Received Amount:</span>
+                <span className="font-semibold">{escrowState.amount} DOT</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Bridge Time:</span>
+                <span className="font-semibold text-green-600">2.3s</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Status:</span>
+                <span className="text-green-600 font-semibold">Success</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Separator className="my-4" />
+
+        <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Amount Received:</span>
-            <span className="font-semibold">1.425 DOT</span>
+            <span className="text-gray-600">Merkle Root:</span>
+            <span className="font-mono">{escrowState.merkleRoot.slice(0, 20)}...</span>
           </div>
           <div className="flex justify-between">
             <span className="text-gray-600">Transaction Hash:</span>
-            <span className="font-mono text-sm text-pink-600">0x7b2274...</span>
+            <span className="font-mono">0x7b2274...</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Bridge Time:</span>
-            <span className="font-semibold text-green-600">2.3s</span>
+            <span className="text-gray-600">Gas Used:</span>
+            <span>245,678 gas</span>
           </div>
         </div>
       </div>

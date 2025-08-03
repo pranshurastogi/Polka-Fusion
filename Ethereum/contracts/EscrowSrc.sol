@@ -6,69 +6,148 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract EscrowSrc {
     address public maker;
-    address public resolver;
+    address public taker;
     address public token;
     uint256 public amount;
-    uint256 public finalityLock ;
-    uint256 public cancelLock ;
-    uint256 public safetyDeposit ;
+    uint256 public expiryTimestamp;
     bytes32 public merkleRoot;
-    bool public filled ;
-    bool public cancelled ;
-    event Filled(bytes32 secret, uint256 index);
-    event Cancelled();
-    event Rescued();
+    uint32 public partsCount;
+    uint32 public partsClaimed;
+    bool public refunded;
 
-    modifier onlyResolver() {
-        require(msg.sender == resolver, "not resolver");
+    event SrcCreated(
+        address indexed maker,
+        address indexed taker,
+        bytes32 indexed merkleRoot,
+        uint32 partsCount,
+        uint256 expiryTimestamp
+    );
+
+    event PartClaimed(
+        address indexed maker,
+        address indexed taker,
+        uint32 partIndex,
+        bytes32 secret,
+        uint256 amount
+    );
+
+    event Refunded(
+        address indexed taker,
+        uint256 amount
+    );
+
+    modifier onlyTaker() {
+        require(msg.sender == taker, "not taker");
         _;
     }
 
     function init(
         address _maker,
-        address _resolver,
+        address _taker,
         address _token,
         uint256 _amount,
         bytes32 _merkleRoot,
-        uint256 _finalityLock,
-        uint256 _cancelLock,
-        uint256 _safetyDeposit
-    ) external payable {
+        uint32 _partsCount,
+        uint256 _expiryTimestamp
+    ) external {
         require(maker == address(0), "initialized");
-        maker = _maker; resolver = _resolver; token = _token;
-        amount = _amount; merkleRoot = _merkleRoot;
-        finalityLock = _finalityLock; cancelLock = _cancelLock;
-        safetyDeposit = _safetyDeposit;
-        require(msg.value == _safetyDeposit, "wrong deposit");
+        maker = _maker;
+        taker = _taker;
+        token = _token;
+        amount = _amount;
+        merkleRoot = _merkleRoot;
+        partsCount = _partsCount;
+        expiryTimestamp = _expiryTimestamp;
+        partsClaimed = 0;
+        refunded = false;
+
+        // Transfer tokens from maker to this contract
+        require(IERC20(token).transferFrom(maker, address(this), amount), "transfer failed");
+
+        emit SrcCreated(maker, taker, merkleRoot, partsCount, expiryTimestamp);
     }
 
-    function withdrawToResolver(
+    function claimPart(
+        bytes32[] calldata proof,
         bytes32 secret,
-        uint256 index,
-        bytes32[] calldata proof
-    ) external onlyResolver {
-        require(!filled && !cancelled, "done");
-        require(block.timestamp >= finalityLock && block.timestamp < cancelLock, "timelock");
-        bytes32 leaf = keccak256(abi.encodePacked(index, secret));
+        uint32 partIndex
+    ) external onlyTaker {
+        require(!refunded, "escrow refunded");
+        require(block.timestamp < expiryTimestamp, "escrow expired");
+        require(partIndex < partsCount, "invalid part index");
+        require(partIndex == partsClaimed, "parts must be claimed in order");
+
+        // Verify Merkle proof
+        bytes32 leaf = keccak256(abi.encodePacked(partIndex, secret));
         require(MerkleProof.verify(proof, merkleRoot, leaf), "invalid proof");
-        filled = true;
-        IERC20(token).transfer(resolver, amount);
-        payable(resolver).transfer(safetyDeposit);
-        emit Filled(secret, index);
+
+        // Calculate amount for this part
+        uint256 amountPerPart = amount / partsCount;
+        uint256 partAmount = (partIndex == partsCount - 1) 
+            ? amount - (amountPerPart * (partsCount - 1)) // Last part gets remainder
+            : amountPerPart;
+
+        // Transfer amount to taker
+        require(IERC20(token).transfer(taker, partAmount), "transfer failed");
+
+        // Update parts claimed
+        partsClaimed = partIndex + 1;
+
+        emit PartClaimed(maker, taker, partIndex, secret, partAmount);
     }
 
-    function cancel() external onlyResolver {
-        require(!filled && block.timestamp >= cancelLock, "too early/cancel");
-        cancelled = true;
-        IERC20(token).transfer(maker, amount);
-        payable(resolver).transfer(safetyDeposit);
-        emit Cancelled();
+    function refund() external onlyTaker {
+        require(!refunded, "already refunded");
+        require(block.timestamp >= expiryTimestamp, "not expired");
+
+        refunded = true;
+
+        // Calculate remaining balance
+        uint256 remainingAmount = amount;
+        if (partsClaimed > 0) {
+            uint256 amountPerPart = amount / partsCount;
+            uint256 claimedAmount = amountPerPart * partsClaimed;
+            remainingAmount = amount - claimedAmount;
+        }
+
+        // Transfer remaining amount back to maker
+        if (remainingAmount > 0) {
+            require(IERC20(token).transfer(maker, remainingAmount), "transfer failed");
+        }
+
+        emit Refunded(taker, remainingAmount);
     }
 
-    function rescueFunds() external {
-        require(cancelled && !filled, "cannot rescue");
-        IERC20(token).transfer(maker, amount);
-        payable(msg.sender).transfer(safetyDeposit);
-        emit Rescued();
+    // View functions to match Polkadot interface
+    function getMaker() external view returns (address) {
+        return maker;
+    }
+
+    function getTaker() external view returns (address) {
+        return taker;
+    }
+
+    function getMerkleRoot() external view returns (bytes32) {
+        return merkleRoot;
+    }
+
+    function getPartsCount() external view returns (uint32) {
+        return partsCount;
+    }
+
+    function getExpiryTimestamp() external view returns (uint256) {
+        return expiryTimestamp;
+    }
+
+    function getPartsClaimed() external view returns (uint32) {
+        return partsClaimed;
+    }
+
+    function getRefunded() external view returns (bool) {
+        return refunded;
+    }
+
+    function getBalance() external view returns (uint256) {
+        return IERC20(token).balanceOf(address(this));
     }
 }
