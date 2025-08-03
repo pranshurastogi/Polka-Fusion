@@ -5,6 +5,8 @@
   "main": "scripts/deploy-local.js",
   "scripts": {
     "deploy": "node scripts/deploy-local.js",
+    "deploy-roccoo": "node scripts/deploy-roccoo.js",
+    "deploy-westend": "node scripts/deploy-westend.js",
     "visualize": "node scripts/visualize-swap.js",
     "start-node": "substrate --dev --tmp",
     "start-node-simple": "./scripts/start-node-simple.sh",
@@ -12,7 +14,10 @@
     "install-substrate": "./scripts/install-substrate-binary.sh",
     "build-contracts": "cd contracts/escrow_dst && cargo contract build && cd ../escrow_factory && cargo contract build",
     "test-contracts": "cd contracts/escrow_dst && cargo test && cd ../escrow_factory && cargo test",
-    "setup": "./scripts/setup.sh"
+    "setup": "./scripts/setup.sh",
+    "setup-roccoo": "./scripts/setup-roccoo.sh",
+    "create-account": "node scripts/create-account.js",
+    "create-westend-account": "node scripts/create-westend-account.js"
   },
   "dependencies": {
     "@polkadot/api": "^10.11.2",
