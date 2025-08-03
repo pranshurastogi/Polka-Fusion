@@ -1,17 +1,82 @@
+# Dependencies
 node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
 .env
+.env.*
+!.env.example
 
 # Hardhat files
 /cache
 /artifacts
-
-# TypeChain files
 /typechain
 /typechain-types
+
+# Hardhat Ignition deployment artifacts
+ignition/deployments/
+ignition/modules/
 
 # solidity-coverage files
 /coverage
 /coverage.json
 
-# Hardhat Ignition default folder for deployments against a local node
-ignition/deployments/chain-31337
+# Gas reports
+gas-report.txt
+
+# Contract verification files
+.flattened
+
+# Deployment logs
+deployments/
+deployed_addresses.json
+
+# Private keys and sensitive data
+*.pem
+*.key
+private_keys.txt
+mnemonic.txt
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Build outputs
+dist/
+build/
+out/
+
+# Test files
+test-results/
+coverage/

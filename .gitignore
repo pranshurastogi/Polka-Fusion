@@ -159,3 +159,25 @@ typechain/
 
 # Windows system files
 Thumbs.db
+
+# Blockchain specific files
+# Private keys and sensitive data
+*.pem
+*.key
+private_keys.txt
+mnemonic.txt
+
+# Deployment artifacts
+deployments/
+deployed_addresses.json
+ignition/deployments/
+
+# Contract verification files
+.flattened
+
+# Gas reports
+gas-report.txt
+
+# Test coverage
+test-results/
+coverage/
