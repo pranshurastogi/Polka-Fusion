@@ -1,8 +1,7 @@
-<div align="center">
-  <img src="https://raw.githubusercontent.com/pranshurastogii/polka-fusion/main/assets/logo.png" alt="Polka Fusion Logo" width="200" height="200">
-</div>
 
-# 🌉 Polka-Fusion: Cross-Chain Atomic Swaps
+<img width="200" height="250" alt="Polka-fusion" src="https://github.com/user-attachments/assets/80f3e720-d295-49d5-b1ce-d9dca05ebc0a" />
+
+# Polka-Fusion: Cross-Chain Atomic Swaps
 
 > **1inch Fusion+ Extension for Ethereum ↔ Polkadot Cross-Chain Swaps**
 
