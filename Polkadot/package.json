@@ -1,0 +1,39 @@
+{
+  "name": "polkadot-fusion-deployment",
+  "version": "1.0.0",
+  "description": "Polkadot deployment and visualization scripts for Fusion+ atomic cross-chain swap",
+  "main": "scripts/deploy-local.js",
+  "scripts": {
+    "deploy": "node scripts/deploy-local.js",
+    "visualize": "node scripts/visualize-swap.js",
+    "start-node": "substrate --dev --tmp",
+    "start-node-simple": "./scripts/start-node-simple.sh",
+    "start-node-full": "./scripts/start-node.sh",
+    "install-substrate": "./scripts/install-substrate-binary.sh",
+    "build-contracts": "cd contracts/escrow_dst && cargo contract build && cd ../escrow_factory && cargo contract build",
+    "test-contracts": "cd contracts/escrow_dst && cargo test && cd ../escrow_factory && cargo test",
+    "setup": "./scripts/setup.sh"
+  },
+  "dependencies": {
+    "@polkadot/api": "^10.11.2",
+    "@polkadot/keyring": "^12.6.2",
+    "@polkadot/util-crypto": "^12.6.2",
+    "@polkadot/types": "^10.11.2"
+  },
+  "devDependencies": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "polkadot",
+    "substrate",
+    "ink",
+    "atomic-swap",
+    "cross-chain",
+    "fusion"
+  ],
+  "author": "Polka-Fusion Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+} 
